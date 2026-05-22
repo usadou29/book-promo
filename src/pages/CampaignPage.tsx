@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Send, Eye, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
+import { Send, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { loadBrevoConfig } from '../lib/brevo-config';
 import { generateEmailHtml } from '../lib/email-template';
@@ -16,7 +16,6 @@ export default function CampaignPage() {
   const [contactCount, setContactCount] = useState(0);
   const [sending, setSending] = useState(false);
   const [progress, setProgress] = useState({ sent: 0, failed: 0, total: 0 });
-  const [showPreview, setShowPreview] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const abortRef = useRef(false);
@@ -37,7 +36,6 @@ export default function CampaignPage() {
     setError(null);
     setSuccess(false);
 
-    // Vérifier config Brevo
     const brevoConfig = loadBrevoConfig();
     if (!brevoConfig || !brevoConfig.api_key) {
       setError('Veuillez configurer votre clé API Brevo dans l\'onglet Config.');
@@ -72,18 +70,14 @@ export default function CampaignPage() {
         .select()
         .single();
 
-      if (campError || !campaign) {
-        throw new Error(campError?.message || 'Erreur création campagne');
-      }
+      if (campError || !campaign) throw new Error(campError?.message || 'Erreur création campagne');
 
       // 2. Charger tous les contacts
       const { data: contacts, error: contactsError } = await supabase
         .from('promo_contacts')
         .select('id, email');
 
-      if (contactsError || !contacts) {
-        throw new Error(contactsError?.message || 'Erreur chargement contacts');
-      }
+      if (contactsError || !contacts) throw new Error(contactsError?.message || 'Erreur chargement contacts');
 
       // 3. Générer le HTML
       const htmlContent = generateEmailHtml({
@@ -128,7 +122,6 @@ export default function CampaignPage() {
 
           const result: SendEmailsResponse = await response.json();
 
-          // Enregistrer les logs
           const logs = result.results.map(r => ({
             campaign_id: campaign.id,
             contact_id: r.contact_id,
@@ -137,7 +130,6 @@ export default function CampaignPage() {
             error_message: r.error || null,
             sent_at: r.status === 'sent' ? new Date().toISOString() : null,
           }));
-
           await supabase.from('promo_send_logs').insert(logs);
 
           const batchSent = result.results.filter(r => r.status === 'sent').length;
@@ -145,13 +137,9 @@ export default function CampaignPage() {
           totalSent += batchSent;
           totalFailed += batchFailed;
           setProgress({ sent: totalSent, failed: totalFailed, total: contactCount });
-
         } catch (batchErr) {
-          // Tout le batch a échoué
           totalFailed += batch.length;
           setProgress({ sent: totalSent, failed: totalFailed, total: contactCount });
-
-          // Log l'erreur pour chaque contact du batch
           const failLogs = batch.map(r => ({
             campaign_id: campaign.id,
             contact_id: r.contact_id,
@@ -163,13 +151,13 @@ export default function CampaignPage() {
           await supabase.from('promo_send_logs').insert(failLogs);
         }
 
-        // Pause 1s entre les batchs pour respecter les rate limits
+        // Pause 1s entre batchs (rate limit Brevo)
         if (i + batchSize < contacts.length) {
           await new Promise(resolve => setTimeout(resolve, 1000));
         }
       }
 
-      // 5. Mettre à jour le statut de la campagne
+      // 5. Mettre à jour le statut campagne
       await supabase
         .from('promo_campaigns')
         .update({
@@ -192,6 +180,7 @@ export default function CampaignPage() {
     abortRef.current = true;
   };
 
+  // L'aperçu se met à jour en temps réel quand on tape
   const previewHtml = generateEmailHtml({
     book_title: form.book_title || 'Titre du livre',
     cover_url: form.cover_url || 'https://via.placeholder.com/250x350/667eea/ffffff?text=Couverture',
@@ -200,36 +189,36 @@ export default function CampaignPage() {
   });
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-      {/* Form */}
-      <div>
-        <h2 className="text-2xl font-bold text-white mb-6">Nouvelle Campagne</h2>
+    <div className="max-w-3xl mx-auto">
+      <h2 className="text-2xl font-bold text-white mb-6">Nouvelle Campagne</h2>
 
-        <form onSubmit={handleSend} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">Objet de l'email</label>
-            <input
-              type="text"
-              value={form.subject}
-              onChange={e => updateField('subject', e.target.value)}
-              placeholder="Mon nouveau livre est disponible !"
-              className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              required
-            />
-          </div>
+      {/* ── Formulaire ── */}
+      <form onSubmit={handleSend} className="space-y-4 mb-8">
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-1">Objet de l'email</label>
+          <input
+            type="text"
+            value={form.subject}
+            onChange={e => updateField('subject', e.target.value)}
+            placeholder="Mon nouveau livre est disponible !"
+            className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            required
+          />
+        </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">Titre du livre</label>
-            <input
-              type="text"
-              value={form.book_title}
-              onChange={e => updateField('book_title', e.target.value)}
-              placeholder="Mon Super Livre Air Fryer"
-              className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              required
-            />
-          </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-1">Titre du livre</label>
+          <input
+            type="text"
+            value={form.book_title}
+            onChange={e => updateField('book_title', e.target.value)}
+            placeholder="Mon Super Livre Air Fryer"
+            className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            required
+          />
+        </div>
 
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-1">URL de la couverture</label>
             <input
@@ -241,7 +230,6 @@ export default function CampaignPage() {
               required
             />
           </div>
-
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-1">URL Amazon</label>
             <input
@@ -253,91 +241,85 @@ export default function CampaignPage() {
               required
             />
           </div>
+        </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">Description (corps de l'email)</label>
-            <textarea
-              value={form.description}
-              onChange={e => updateField('description', e.target.value)}
-              placeholder="Découvrez mon nouveau livre avec 131 recettes air fryer..."
-              rows={4}
-              className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-y"
-              required
-            />
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-1">Description (corps de l'email)</label>
+          <textarea
+            value={form.description}
+            onChange={e => updateField('description', e.target.value)}
+            placeholder="Découvrez mon nouveau livre avec 131 recettes air fryer..."
+            rows={4}
+            className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-y"
+            required
+          />
+        </div>
+
+        {error && (
+          <div className="flex items-center gap-2 p-3 bg-red-900/30 border border-red-700 rounded-lg text-red-300 text-sm">
+            <AlertCircle size={16} className="shrink-0" /> {error}
           </div>
+        )}
 
-          {error && (
-            <div className="flex items-center gap-2 p-3 bg-red-900/30 border border-red-700 rounded-lg text-red-300 text-sm">
-              <AlertCircle size={16} /> {error}
+        {success && (
+          <div className="flex items-center gap-2 p-3 bg-green-900/30 border border-green-700 rounded-lg text-green-300 text-sm">
+            <CheckCircle size={16} className="shrink-0" /> Campagne envoyée ! {progress.sent} envoyé{progress.sent !== 1 ? 's' : ''}, {progress.failed} échec{progress.failed !== 1 ? 's' : ''}
+          </div>
+        )}
+
+        {sending && (
+          <div className="p-4 bg-gray-800 rounded-lg">
+            <div className="flex items-center gap-2 text-indigo-300 mb-2">
+              <Loader2 size={16} className="animate-spin" /> Envoi en cours...
             </div>
-          )}
-
-          {success && (
-            <div className="flex items-center gap-2 p-3 bg-green-900/30 border border-green-700 rounded-lg text-green-300 text-sm">
-              <CheckCircle size={16} /> Campagne envoyée ! {progress.sent} envoyé{progress.sent !== 1 ? 's' : ''}, {progress.failed} échec{progress.failed !== 1 ? 's' : ''}
+            <div className="w-full bg-gray-700 rounded-full h-3 overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-300"
+                style={{ width: `${((progress.sent + progress.failed) / Math.max(progress.total, 1)) * 100}%` }}
+              />
             </div>
-          )}
-
-          {/* Progress during sending */}
-          {sending && (
-            <div className="p-4 bg-gray-800 rounded-lg">
-              <div className="flex items-center gap-2 text-indigo-300 mb-2">
-                <Loader2 size={16} className="animate-spin" /> Envoi en cours...
-              </div>
-              <div className="w-full bg-gray-700 rounded-full h-3 overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-300"
-                  style={{ width: `${((progress.sent + progress.failed) / Math.max(progress.total, 1)) * 100}%` }}
-                />
-              </div>
-              <div className="flex justify-between text-xs text-gray-400 mt-2">
-                <span>{progress.sent} envoyé{progress.sent !== 1 ? 's' : ''}</span>
-                <span>{progress.failed} échec{progress.failed !== 1 ? 's' : ''}</span>
-                <span>{progress.sent + progress.failed} / {progress.total}</span>
-              </div>
-              <button
-                type="button"
-                onClick={handleAbort}
-                className="mt-3 px-3 py-1 bg-red-600/30 hover:bg-red-600/50 text-red-300 text-xs rounded transition"
-              >
-                Annuler l'envoi
-              </button>
+            <div className="flex justify-between text-xs text-gray-400 mt-2">
+              <span>{progress.sent} envoyé{progress.sent !== 1 ? 's' : ''}</span>
+              <span>{progress.failed} échec{progress.failed !== 1 ? 's' : ''}</span>
+              <span>{progress.sent + progress.failed} / {progress.total}</span>
             </div>
-          )}
-
-          <div className="flex items-center gap-3 pt-2">
-            <button
-              type="submit"
-              disabled={sending}
-              className="flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition"
-            >
-              <Send size={16} />
-              Envoyer à {contactCount} contact{contactCount !== 1 ? 's' : ''}
-            </button>
             <button
               type="button"
-              onClick={() => setShowPreview(!showPreview)}
-              className="flex items-center gap-2 px-4 py-3 bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm rounded-lg transition"
+              onClick={handleAbort}
+              className="mt-3 px-3 py-1 bg-red-600/30 hover:bg-red-600/50 text-red-300 text-xs rounded transition"
             >
-              <Eye size={16} /> {showPreview ? 'Masquer' : 'Aperçu'}
+              Annuler l'envoi
             </button>
           </div>
-        </form>
-      </div>
+        )}
 
-      {/* Preview */}
-      {showPreview && (
-        <div className="lg:sticky lg:top-6">
-          <h3 className="text-lg font-semibold text-gray-300 mb-3">Aperçu de l'email</h3>
-          <div className="bg-white rounded-lg overflow-hidden shadow-xl">
-            <iframe
-              srcDoc={previewHtml}
-              className="w-full h-[600px] border-0"
-              title="Email Preview"
-            />
-          </div>
+        <button
+          type="submit"
+          disabled={sending}
+          className="flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition"
+        >
+          <Send size={16} />
+          Envoyer à {contactCount} contact{contactCount !== 1 ? 's' : ''}
+        </button>
+      </form>
+
+      {/* ── Aperçu en temps réel (toujours visible) ── */}
+      <div className="border-t border-gray-700 pt-6">
+        <h3 className="text-lg font-semibold text-gray-300 mb-4">
+          Aperçu de l'email
+          <span className="text-sm font-normal text-gray-500 ml-2">
+            (se met à jour en temps réel)
+          </span>
+        </h3>
+        <div className="bg-white rounded-xl overflow-hidden shadow-2xl border border-gray-600">
+          <iframe
+            srcDoc={previewHtml}
+            className="w-full border-0"
+            style={{ height: '650px' }}
+            title="Aperçu email"
+          />
         </div>
-      )}
+      </div>
     </div>
   );
 }

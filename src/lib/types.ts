@@ -1,5 +1,3 @@
-// ─── Database types ───────────────────────────────────────────────
-
 export interface Contact {
   id: string;
   email: string;
@@ -33,8 +31,6 @@ export interface SendLog {
   sent_at: string | null;
 }
 
-// ─── Form types ──────────────────────────────────────────────────
-
 export interface CampaignFormData {
   book_title: string;
   cover_url: string;
@@ -48,8 +44,6 @@ export interface BrevoConfig {
   sender_name: string;
   sender_email: string;
 }
-
-// ─── API types ───────────────────────────────────────────────────
 
 export interface SendEmailsRequest {
   campaign_id: string;

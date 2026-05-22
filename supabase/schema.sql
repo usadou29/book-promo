@@ -1,20 +1,14 @@
--- ╔═══════════════════════════════════════════════════════════════╗
--- ║  Book Promo — Schema Supabase                               ║
--- ║  Tables: contacts, campaigns, send_logs                     ║
--- ╚═══════════════════════════════════════════════════════════════╝
+-- Book Promo — Schema Supabase
+-- Tables: promo_contacts, promo_campaigns, promo_send_logs
 
--- 1. Contacts (liste d'emails importés)
 CREATE TABLE IF NOT EXISTS promo_contacts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   email TEXT NOT NULL UNIQUE,
   source TEXT DEFAULT 'import',
   created_at TIMESTAMPTZ DEFAULT now()
 );
-
--- Index pour recherche rapide
 CREATE INDEX IF NOT EXISTS idx_promo_contacts_email ON promo_contacts(email);
 
--- 2. Campagnes
 CREATE TABLE IF NOT EXISTS promo_campaigns (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   title TEXT NOT NULL,
@@ -31,7 +25,6 @@ CREATE TABLE IF NOT EXISTS promo_campaigns (
   completed_at TIMESTAMPTZ
 );
 
--- 3. Logs d'envoi (un row par email envoyé)
 CREATE TABLE IF NOT EXISTS promo_send_logs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   campaign_id UUID NOT NULL REFERENCES promo_campaigns(id) ON DELETE CASCADE,
@@ -42,17 +35,14 @@ CREATE TABLE IF NOT EXISTS promo_send_logs (
   sent_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT now()
 );
-
 CREATE INDEX IF NOT EXISTS idx_promo_send_logs_campaign ON promo_send_logs(campaign_id);
 CREATE INDEX IF NOT EXISTS idx_promo_send_logs_status ON promo_send_logs(campaign_id, status);
 
--- 4. RLS (Row Level Security) — désactivé car app privée
--- Si tu veux protéger plus tard, active RLS et ajoute des policies
+-- RLS: accès total (app privée)
 ALTER TABLE promo_contacts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE promo_campaigns ENABLE ROW LEVEL SECURITY;
 ALTER TABLE promo_send_logs ENABLE ROW LEVEL SECURITY;
 
--- Policies: accès total via anon key (app privée, pas d'utilisateurs publics)
 CREATE POLICY "Allow all on promo_contacts" ON promo_contacts FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all on promo_campaigns" ON promo_campaigns FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all on promo_send_logs" ON promo_send_logs FOR ALL USING (true) WITH CHECK (true);

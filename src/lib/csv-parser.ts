@@ -1,6 +1,6 @@
 /**
- * Simple CSV parser — pas de dépendance externe.
- * Gère les champs entre guillemets et les virgules dans les valeurs.
+ * Simple CSV parser — zero dependency.
+ * Handles quoted fields and commas/semicolons inside values.
  */
 export function parseCSV(text: string): Record<string, string>[] {
   const lines = text.split(/\r?\n/).filter(line => line.trim() !== '');
@@ -17,7 +17,6 @@ export function parseCSV(text: string): Record<string, string>[] {
     });
     rows.push(row);
   }
-
   return rows;
 }
 
@@ -28,12 +27,11 @@ function parseLine(line: string): string[] {
 
   for (let i = 0; i < line.length; i++) {
     const char = line[i];
-
     if (inQuotes) {
       if (char === '"') {
         if (i + 1 < line.length && line[i + 1] === '"') {
           current += '"';
-          i++; // skip escaped quote
+          i++;
         } else {
           inQuotes = false;
         }
@@ -51,7 +49,6 @@ function parseLine(line: string): string[] {
       }
     }
   }
-
   result.push(current);
   return result;
 }

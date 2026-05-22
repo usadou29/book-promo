@@ -18,17 +18,12 @@ export default function ContactsPage() {
       .from('promo_contacts')
       .select('*')
       .order('created_at', { ascending: false });
-    if (err) {
-      setError(err.message);
-    } else {
-      setContacts(data || []);
-    }
+    if (err) setError(err.message);
+    else setContacts(data || []);
     setLoading(false);
   }, []);
 
-  useEffect(() => {
-    fetchContacts();
-  }, [fetchContacts]);
+  useEffect(() => { fetchContacts(); }, [fetchContacts]);
 
   const handleFileImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -50,7 +45,6 @@ export default function ContactsPage() {
           return;
         }
 
-        // Trouver la colonne email (flexible)
         const emailKey = Object.keys(rows[0]).find(
           k => k.toLowerCase().includes('email') || k.toLowerCase().includes('mail')
         );
@@ -61,7 +55,6 @@ export default function ContactsPage() {
           return;
         }
 
-        // Extraire et nettoyer les emails
         const emails = rows
           .map(row => row[emailKey]?.trim().toLowerCase())
           .filter((email): email is string => {
@@ -69,10 +62,7 @@ export default function ContactsPage() {
             return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
           });
 
-        // Dédupliquer
         const uniqueEmails = [...new Set(emails)];
-
-        // Insérer par batch de 50 (upsert pour ignorer doublons)
         let added = 0;
         const batchSize = 50;
 
@@ -87,11 +77,8 @@ export default function ContactsPage() {
             .upsert(batch, { onConflict: 'email', ignoreDuplicates: true })
             .select();
 
-          if (insertError) {
-            console.error('Insert error:', insertError);
-          } else {
-            added += (data || []).length;
-          }
+          if (insertError) console.error('Insert error:', insertError);
+          else added += (data || []).length;
         }
 
         const duplicates = uniqueEmails.length - added;
@@ -103,65 +90,41 @@ export default function ContactsPage() {
         setImporting(false);
       }
     };
-    reader.onerror = () => {
-      setError('Erreur de lecture du fichier');
-      setImporting(false);
-    };
+    reader.onerror = () => { setError('Erreur de lecture du fichier'); setImporting(false); };
     reader.readAsText(file);
-
-    // Reset input
     e.target.value = '';
   };
 
   const handleDeleteAll = async () => {
     if (!confirm('Supprimer TOUS les contacts ? Cette action est irréversible.')) return;
     const { error: err } = await supabase.from('promo_contacts').delete().neq('id', '');
-    if (err) {
-      setError(err.message);
-    } else {
-      setContacts([]);
-    }
+    if (err) setError(err.message);
+    else setContacts([]);
   };
 
   const handleDeleteOne = async (id: string) => {
     const { error: err } = await supabase.from('promo_contacts').delete().eq('id', id);
-    if (err) {
-      setError(err.message);
-    } else {
-      setContacts(prev => prev.filter(c => c.id !== id));
-    }
+    if (err) setError(err.message);
+    else setContacts(prev => prev.filter(c => c.id !== id));
   };
 
-  const filtered = contacts.filter(c =>
-    c.email.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = contacts.filter(c => c.email.toLowerCase().includes(search.toLowerCase()));
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-2xl font-bold text-white">Contacts</h2>
-          <p className="text-gray-400 text-sm mt-1">
-            {contacts.length} contact{contacts.length !== 1 ? 's' : ''} au total
-          </p>
+          <p className="text-gray-400 text-sm mt-1">{contacts.length} contact{contacts.length !== 1 ? 's' : ''} au total</p>
         </div>
         <div className="flex items-center gap-3">
           <label className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg cursor-pointer transition">
             <Upload size={16} />
             {importing ? 'Import en cours...' : 'Importer CSV'}
-            <input
-              type="file"
-              accept=".csv"
-              onChange={handleFileImport}
-              className="hidden"
-              disabled={importing}
-            />
+            <input type="file" accept=".csv" onChange={handleFileImport} className="hidden" disabled={importing} />
           </label>
           {contacts.length > 0 && (
-            <button
-              onClick={handleDeleteAll}
-              className="flex items-center gap-2 px-4 py-2 bg-red-600/20 hover:bg-red-600/40 text-red-400 text-sm font-medium rounded-lg transition"
-            >
+            <button onClick={handleDeleteAll} className="flex items-center gap-2 px-4 py-2 bg-red-600/20 hover:bg-red-600/40 text-red-400 text-sm font-medium rounded-lg transition">
               <Trash2 size={16} /> Tout supprimer
             </button>
           )}
@@ -180,7 +143,6 @@ export default function ContactsPage() {
         </div>
       )}
 
-      {/* Search */}
       <div className="relative mb-4">
         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
         <input
@@ -192,7 +154,6 @@ export default function ContactsPage() {
         />
       </div>
 
-      {/* Contact list */}
       {loading ? (
         <div className="flex items-center gap-3 text-gray-400 py-12 justify-center">
           <Users size={20} className="animate-pulse" /> Chargement...
@@ -217,15 +178,9 @@ export default function ContactsPage() {
                 <tr key={contact.id} className="border-b border-gray-700/50 hover:bg-gray-700/30">
                   <td className="px-4 py-3 text-white">{contact.email}</td>
                   <td className="px-4 py-3 text-gray-400">{contact.source}</td>
-                  <td className="px-4 py-3 text-gray-400">
-                    {new Date(contact.created_at).toLocaleDateString('fr-FR')}
-                  </td>
+                  <td className="px-4 py-3 text-gray-400">{new Date(contact.created_at).toLocaleDateString('fr-FR')}</td>
                   <td className="px-4 py-3">
-                    <button
-                      onClick={() => handleDeleteOne(contact.id)}
-                      className="text-gray-500 hover:text-red-400 transition"
-                      title="Supprimer"
-                    >
+                    <button onClick={() => handleDeleteOne(contact.id)} className="text-gray-500 hover:text-red-400 transition" title="Supprimer">
                       <Trash2 size={14} />
                     </button>
                   </td>

@@ -1,5 +1,5 @@
 /**
- * Génère le template HTML de l'email promotionnel pour un livre.
+ * Génère le template HTML de l'email promotionnel.
  */
 export function generateEmailHtml(params: {
   book_title: string;
