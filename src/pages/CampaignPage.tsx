@@ -244,15 +244,23 @@ export default function CampaignPage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-1">Description (corps de l'email)</label>
+          <label className="block text-sm font-medium text-gray-300 mb-1">
+            Description (corps de l'email)
+            <span className="text-xs font-normal text-gray-500 ml-2">
+              HTML accepté — ex : &lt;b&gt;, &lt;br&gt;, &lt;ul&gt;&lt;li&gt;, &lt;a href&gt;
+            </span>
+          </label>
           <textarea
             value={form.description}
             onChange={e => updateField('description', e.target.value)}
-            placeholder="Découvrez mon nouveau livre avec 131 recettes air fryer..."
-            rows={4}
-            className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-y"
+            placeholder={'Texte simple ou HTML, ex :\n<b>131 recettes</b> air fryer<br>\n<ul><li>Rapide</li><li>Healthy</li></ul>'}
+            rows={6}
+            className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-y font-mono text-sm"
             required
           />
+          <p className="text-xs text-gray-500 mt-1">
+            Écris du texte simple (les sauts de ligne sont conservés) ou directement du HTML : il sera rendu tel quel dans l'email et l'aperçu ci-dessous.
+          </p>
         </div>
 
         {error && (

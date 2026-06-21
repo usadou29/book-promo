@@ -1,4 +1,33 @@
 /**
+ * Détecte si une chaîne contient des balises HTML.
+ */
+function containsHtml(text: string): boolean {
+  return /<\/?[a-z][\s\S]*>/i.test(text);
+}
+
+/**
+ * Échappe les caractères spéciaux HTML (pour le texte simple).
+ */
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+/**
+ * Rend la description :
+ * - Si l'utilisateur écrit du HTML, on l'insère tel quel (il "ressort bien").
+ * - Sinon, on échappe le texte et on convertit les sauts de ligne en <br>.
+ */
+export function renderDescription(description: string): string {
+  if (containsHtml(description)) {
+    return description;
+  }
+  return escapeHtml(description).replace(/\r?\n/g, '<br>');
+}
+
+/**
  * Génère le template HTML de l'email promotionnel.
  */
 export function generateEmailHtml(params: {
@@ -46,9 +75,9 @@ export function generateEmailHtml(params: {
           <!-- Description -->
           <tr>
             <td style="padding:0 30px 25px;">
-              <p style="margin:0;font-size:16px;line-height:1.6;color:#555555;text-align:center;">
-                ${description}
-              </p>
+              <div style="margin:0;font-size:16px;line-height:1.6;color:#555555;text-align:center;">
+                ${renderDescription(description)}
+              </div>
             </td>
           </tr>
 
